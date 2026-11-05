@@ -1,6 +1,5 @@
 --============================================================
--- ZORX HUB - FULL SERVICE (FIREBASE INFO, AUTO EXECUTOR & MAINTENANCE)
--- Fixed: Top-Right Notification, 5-4-3-2-1 Countdown, Global Kill Switch
+-- ZORX HUB - FULL UI (MURNI UI & BROADCAST SAJA)
 --============================================================
 
 local Players = game:GetService("Players")
@@ -8,246 +7,54 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local StarterGui = game:GetService("StarterGui")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-
 local reqFunc = request or (syn and syn.request) or (http and http.request) or http_request
 
 -- ============================================================
--- 0. GLOBAL KILL SWITCH STATE
+-- BERSIHKAN UI LAMA
 -- ============================================================
-local Killed = false
-local KillLock = false
-local AnnouncementGui = nil
-
-local function hardStop()
-	Killed = true
-	pcall(function()
-		if getgenv then getgenv().ZorXKilled = true end
-	end)
-end
-
--- ============================================================
--- 1. TOP-RIGHT ANNOUNCEMENT NOTIFICATION SYSTEM
--- ============================================================
-local function createTopRightNotif(title, body, opts)
-	opts = opts or {}
-
-	if not AnnouncementGui or not AnnouncementGui.Parent then
-		local gui = Instance.new("ScreenGui")
-		gui.Name = "ZorXAnnouncement"
-		gui.ResetOnSpawn = false
-		gui.IgnoreGuiInset = true
-		gui.DisplayOrder = 999
-		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		gui.Parent = playerGui
-		AnnouncementGui = gui
-	end
-
-	local holder = AnnouncementGui:FindFirstChild("NotifHolder")
-	if not holder then
-		holder = Instance.new("Frame")
-		holder.Name = "NotifHolder"
-		holder.AnchorPoint = Vector2.new(1, 0)
-		holder.Position = UDim2.new(1, -16, 0, 16)
-		holder.Size = UDim2.new(0, 320, 0, 0)
-		holder.AutomaticSize = Enum.AutomaticSize.Y
-		holder.BackgroundTransparency = 1
-		holder.Parent = AnnouncementGui
-		local list = Instance.new("UIListLayout")
-		list.SortOrder = Enum.SortOrder.LayoutOrder
-		list.Padding = UDim.new(0, 8)
-		list.Parent = holder
-	end
-
-	local card = Instance.new("Frame")
-	card.Name = "NotifCard"
-	card.Size = UDim2.new(1, 0, 0, 0)
-	card.AutomaticSize = Enum.AutomaticSize.Y
-	card.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
-	card.BorderSizePixel = 0
-	card.ClipsDescendants = false
-	card.LayoutOrder = math.floor(tick())
-	card.Parent = holder
-
-	local cCorner = Instance.new("UICorner")
-	cCorner.CornerRadius = UDim.new(0, 8)
-	cCorner.Parent = card
-
-	local cStroke = Instance.new("UIStroke")
-	cStroke.Color = Color3.fromRGB(160, 80, 255)
-	cStroke.Thickness = 1
-	cStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	cStroke.Parent = card
-
-	local logoBox = Instance.new("Frame")
-	logoBox.Size = UDim2.new(0, 56, 0, 56)
-	logoBox.Position = UDim2.new(0, 14, 0, 14)
-	logoBox.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
-	logoBox.BorderSizePixel = 0
-	logoBox.ClipsDescendants = true
-	logoBox.Parent = card
-
-	local logoCorner = Instance.new("UICorner")
-	logoCorner.CornerRadius = UDim.new(0, 7)
-	logoCorner.Parent = logoBox
-
-	local logoStroke = Instance.new("UIStroke")
-	logoStroke.Color = Color3.fromRGB(160, 80, 255)
-	logoStroke.Thickness = 1
-	logoStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	logoStroke.Parent = logoBox
-
-	local logoImg = Instance.new("ImageLabel")
-	logoImg.Size = UDim2.new(1, 0, 1, 0)
-	logoImg.BackgroundTransparency = 1
-	logoImg.Image = opts.icon or "rbxassetid://77776661633653"
-	logoImg.ScaleType = Enum.ScaleType.Stretch
-	logoImg.Parent = logoBox
-
-	local logoImgCorner = Instance.new("UICorner")
-	logoImgCorner.CornerRadius = UDim.new(0, 6)
-	logoImgCorner.Parent = logoImg
-
-	local cTitle = Instance.new("TextLabel")
-	cTitle.Size = UDim2.new(1, -85, 0, 18)
-	cTitle.Position = UDim2.new(0, 80, 0, 16)
-	cTitle.BackgroundTransparency = 1
-	cTitle.Text = title
-	cTitle.TextColor3 = Color3.fromRGB(240, 240, 240)
-	cTitle.Font = Enum.Font.GothamBold
-	cTitle.TextSize = 12
-	cTitle.TextXAlignment = Enum.TextXAlignment.Left
-	cTitle.TextWrapped = true
-	cTitle.Parent = card
-
-	local cInfo = Instance.new("TextLabel")
-	cInfo.Size = UDim2.new(1, -85, 0, 30)
-	cInfo.Position = UDim2.new(0, 80, 0, 36)
-	cInfo.BackgroundTransparency = 1
-	cInfo.Text = body
-	cInfo.TextColor3 = Color3.fromRGB(170, 170, 190)
-	cInfo.Font = Enum.Font.Gotham
-	cInfo.TextSize = 10
-	cInfo.TextXAlignment = Enum.TextXAlignment.Left
-	cInfo.TextYAlignment = Enum.TextYAlignment.Top
-	cInfo.TextWrapped = true
-	cInfo.AutomaticSize = Enum.AutomaticSize.Y
-	cInfo.Parent = card
-
-	local spacer = Instance.new("Frame")
-	spacer.Size = UDim2.new(1, 0, 0, 56)
-	spacer.BackgroundTransparency = 1
-	spacer.Parent = card
-
-	return {
-		Card = card,
-		Title = cTitle,
-		Body = cInfo,
-		Stroke = cStroke,
-		LogoStroke = logoStroke,
-		SetBody = function(newBody) cInfo.Text = newBody end,
-		Destroy = function()
-			if card and card.Parent then
-				local shrink = TweenService:Create(card, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = UDim2.new(1, 0, 0, 0) })
-				shrink:Play()
-				shrink.Completed:Connect(function() card:Destroy() end)
-			end
-		end,
-	}
-end
-
--- ============================================================
--- 2. MAINTENANCE SEQUENCE
--- ============================================================
-local function runMaintenanceSequence()
-	if KillLock then return end
-	KillLock = true
-	hardStop()
-
-	local notif = createTopRightNotif(
-		"ZorX Hub - Maintenance",
-		"Script temporarily disabled. Rejoining in 5 seconds.",
-		{ icon = "rbxassetid://77776661633653" }
-	)
-
-	for i = 5, 1, -1 do
-		notif.SetBody("Script temporarily disabled. Rejoining in " .. i .. " second" .. (i > 1 and "s" or "") .. ".")
-		task.wait(1)
-	end
-
-	notif.SetBody("Rejoining...")
-	task.wait(0.4)
-
-	pcall(function()
-		if #Players:GetPlayers() <= 1 then
-			TeleportService:Teleport(game.PlaceId, player)
-		else
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-		end
-	end)
-end
-
--- ============================================================
--- 3. CEK AWAL (BLOCKING)
--- ============================================================
-local function checkMaintenanceBlocking()
-	if not reqFunc then return false end
-	local ok, response = pcall(function()
-		return reqFunc({
-			Url = "https://zorx-broadcast-default-rtdb.firebaseio.com/info.json",
-			Method = "GET",
-		})
-	end)
-	if ok and response and (response.StatusCode == 200 or response.Status == 200) then
-		local decodedOk, data = pcall(function() return HttpService:JSONDecode(response.Body) end)
-		if decodedOk and data and data.Maintenance == true then return true end
-	end
-	return false
-end
-
-if checkMaintenanceBlocking() then
-	warn("[ZorX Hub] Maintenance aktif - script dihentikan total.")
-	runMaintenanceSequence()
-	return
-end
-
 for _, gui in pairs(playerGui:GetChildren()) do
-	if gui.Name == "ZorXHub" then gui:Destroy() end
+	if gui.Name == "ZorXHub" or gui.Name == "ZorxTopNotifContainer" then
+		gui:Destroy()
+	end
 end
 
--- ============================================================
--- 4. KONSTANTA
--- ============================================================
 local Colors = {
-	Background = Color3.fromRGB(15, 15, 18),
-	Sidebar    = Color3.fromRGB(18, 18, 22),
-	Panel      = Color3.fromRGB(22, 22, 27),
-	Slot       = Color3.fromRGB(28, 28, 34),
-	SlotHover  = Color3.fromRGB(38, 38, 46),
-	Text       = Color3.fromRGB(240, 240, 240),
-	SubText    = Color3.fromRGB(140, 140, 150),
-	Stroke     = Color3.fromRGB(45, 45, 55),
-	PillBg     = Color3.fromRGB(28, 28, 34),
-	PillStroke = Color3.fromRGB(45, 45, 55),
-	PillText   = Color3.fromRGB(240, 240, 240),
+	Background   = Color3.fromRGB(15, 15, 18),
+	Sidebar      = Color3.fromRGB(18, 18, 22),
+	Panel        = Color3.fromRGB(22, 22, 27),
+	Slot         = Color3.fromRGB(28, 28, 34),
+	SlotHover    = Color3.fromRGB(38, 38, 46),
+	Text         = Color3.fromRGB(240, 240, 240),
+	SubText      = Color3.fromRGB(140, 140, 150),
+	Stroke       = Color3.fromRGB(45, 45, 55),
+	PillBg       = Color3.fromRGB(28, 28, 34),
+	PillStroke   = Color3.fromRGB(45, 45, 55),
+	PillText     = Color3.fromRGB(240, 240, 240),
+	Red          = Color3.fromRGB(220, 50, 60)
 }
 
 local DefaultPillBg = Color3.fromRGB(28, 28, 34)
 local DefaultPillStroke = Color3.fromRGB(45, 45, 55)
 local DefaultPillText = Color3.fromRGB(240, 240, 240)
 local DefaultBorder = Color3.fromRGB(45, 45, 55)
+
 local InfoLogoBorder = Color3.fromRGB(160, 80, 255)
 local NoneDotColor = Color3.fromRGB(45, 45, 55)
 
 local function getGameName()
 	local name = "Unknown Game"
 	pcall(function()
-		local ok, info = pcall(function() return MarketplaceService:GetProductInfo(game.PlaceId) end)
-		if ok and info and info.Name then name = info.Name else name = game.Name end
+		local ok, info = pcall(function()
+			return MarketplaceService:GetProductInfo(game.PlaceId)
+		end)
+		if ok and info and info.Name then
+			name = info.Name
+		else
+			name = game.Name
+		end
 	end)
 	if not name or name == "" then name = "Unknown Game" end
 	return name
@@ -255,44 +62,43 @@ end
 
 local function getExecutorName()
 	if identifyexecutor then
-		local s, n = pcall(identifyexecutor)
-		if s and n then return n end
+		local success, name = pcall(identifyexecutor)
+		if success and name then return name end
 	elseif getexecutorname then
-		local s, n = pcall(getexecutorname)
-		if s and n then return n end
+		local success, name = pcall(getexecutorname)
+		if success and name then return name end
 	end
 	if syn then return "Synapse X"
 	elseif fluxus then return "Fluxus"
 	elseif hydrogen then return "Hydrogen"
-	elseif delta then return "Delta"
+	elseif delta or (identifyexecutor and pcall(identifyexecutor) and string.find(string.lower(identifyexecutor()), "delta")) then return "Delta"
 	elseif codex then return "Codex"
 	elseif arceus then return "Arceus X"
 	elseif solara then return "Solara"
 	elseif wave then return "Wave"
-	end
-	return "Unknown Executor"
+	else return "Unknown Executor" end
 end
 
 local detectedExecutor = getExecutorName()
-print("Executor terdeteksi: " .. detectedExecutor)
+print("Executor yang terdeteksi: " .. detectedExecutor)
 
 local ThemeColors = {
-	None    = { bg = DefaultPillBg,       stroke = DefaultPillStroke,           text = DefaultPillText,           border = DefaultBorder,  infoLogo = InfoLogoBorder },
-	Biru    = { bg = Color3.fromRGB(25,55,130),   stroke = Color3.fromRGB(60,120,220),  text = Color3.fromRGB(220,235,255), border = Color3.fromRGB(60,120,220),  infoLogo = Color3.fromRGB(60,120,220) },
-	Ungu    = { bg = Color3.fromRGB(80,35,130),   stroke = Color3.fromRGB(160,90,220),  text = Color3.fromRGB(235,220,255), border = Color3.fromRGB(160,90,220),  infoLogo = Color3.fromRGB(160,90,220) },
-	Hijau   = { bg = Color3.fromRGB(25,100,50),   stroke = Color3.fromRGB(60,180,90),   text = Color3.fromRGB(220,255,225), border = Color3.fromRGB(60,180,90),   infoLogo = Color3.fromRGB(60,180,90) },
-	Kuning  = { bg = Color3.fromRGB(140,120,25),  stroke = Color3.fromRGB(220,200,60),  text = Color3.fromRGB(255,250,215), border = Color3.fromRGB(220,200,60),  infoLogo = Color3.fromRGB(220,200,60) },
-	Oren    = { bg = Color3.fromRGB(150,75,20),   stroke = Color3.fromRGB(230,140,50),  text = Color3.fromRGB(255,235,215), border = Color3.fromRGB(230,140,50),  infoLogo = Color3.fromRGB(230,140,50) },
-	Merah   = { bg = Color3.fromRGB(130,25,30),   stroke = Color3.fromRGB(220,60,70),   text = Color3.fromRGB(255,220,220), border = Color3.fromRGB(220,60,70),   infoLogo = Color3.fromRGB(220,60,70) },
-	Pink    = { bg = Color3.fromRGB(140,40,90),   stroke = Color3.fromRGB(230,100,160), text = Color3.fromRGB(255,225,240), border = Color3.fromRGB(230,100,160), infoLogo = Color3.fromRGB(230,100,160) },
-	Cyan    = { bg = Color3.fromRGB(20,100,110),  stroke = Color3.fromRGB(60,200,210),  text = Color3.fromRGB(215,250,255), border = Color3.fromRGB(60,200,210),  infoLogo = Color3.fromRGB(60,200,210) },
-	Putih   = { bg = Color3.fromRGB(180,180,185), stroke = Color3.fromRGB(240,240,245), text = Color3.fromRGB(30,30,35),    border = Color3.fromRGB(240,240,245), infoLogo = Color3.fromRGB(240,240,245) },
-	Hitam   = { bg = Color3.fromRGB(15,15,18),    stroke = Color3.fromRGB(50,50,55),    text = Color3.fromRGB(240,240,240), border = Color3.fromRGB(50,50,55),    infoLogo = Color3.fromRGB(50,50,55) },
-	Emas    = { bg = Color3.fromRGB(140,100,20),  stroke = Color3.fromRGB(230,190,60),  text = Color3.fromRGB(255,245,210), border = Color3.fromRGB(230,190,60),  infoLogo = Color3.fromRGB(230,190,60) },
-	Abu     = { bg = Color3.fromRGB(60,60,70),    stroke = Color3.fromRGB(120,120,135), text = Color3.fromRGB(240,240,240), border = Color3.fromRGB(120,120,135), infoLogo = Color3.fromRGB(120,120,135) },
-	Lime    = { bg = Color3.fromRGB(80,140,25),   stroke = Color3.fromRGB(160,230,60),  text = Color3.fromRGB(240,255,215), border = Color3.fromRGB(160,230,60),  infoLogo = Color3.fromRGB(160,230,60) },
-	Marun   = { bg = Color3.fromRGB(80,20,30),    stroke = Color3.fromRGB(150,50,60),   text = Color3.fromRGB(255,220,220), border = Color3.fromRGB(150,50,60),   infoLogo = Color3.fromRGB(150,50,60) },
-	Navy    = { bg = Color3.fromRGB(15,25,70),    stroke = Color3.fromRGB(45,70,150),   text = Color3.fromRGB(215,225,255), border = Color3.fromRGB(45,70,150),   infoLogo = Color3.fromRGB(45,70,150) },
+	None   = { bg = DefaultPillBg,       stroke = DefaultPillStroke,           text = DefaultPillText,           border = DefaultBorder,  infoLogo = InfoLogoBorder },
+	Biru   = { bg = Color3.fromRGB(25,55,130),   stroke = Color3.fromRGB(60,120,220),  text = Color3.fromRGB(220,235,255), border = Color3.fromRGB(60,120,220),  infoLogo = Color3.fromRGB(60,120,220) },
+	Ungu   = { bg = Color3.fromRGB(80,35,130),   stroke = Color3.fromRGB(160,90,220),  text = Color3.fromRGB(235,220,255), border = Color3.fromRGB(160,90,220),  infoLogo = Color3.fromRGB(160,90,220) },
+	Hijau  = { bg = Color3.fromRGB(25,100,50),   stroke = Color3.fromRGB(60,180,90),   text = Color3.fromRGB(220,255,225), border = Color3.fromRGB(60,180,90),   infoLogo = Color3.fromRGB(60,180,90) },
+	Kuning = { bg = Color3.fromRGB(140,120,25),  stroke = Color3.fromRGB(220,200,60),  text = Color3.fromRGB(255,250,215), border = Color3.fromRGB(220,200,60),  infoLogo = Color3.fromRGB(220,200,60) },
+	Oren   = { bg = Color3.fromRGB(150,75,20),   stroke = Color3.fromRGB(230,140,50),  text = Color3.fromRGB(255,235,215), border = Color3.fromRGB(230,140,50),  infoLogo = Color3.fromRGB(230,140,50) },
+	Merah  = { bg = Color3.fromRGB(130,25,30),   stroke = Color3.fromRGB(220,60,70),   text = Color3.fromRGB(255,220,220), border = Color3.fromRGB(220,60,70),   infoLogo = Color3.fromRGB(220,60,70) },
+	Pink   = { bg = Color3.fromRGB(140,40,90),   stroke = Color3.fromRGB(230,100,160), text = Color3.fromRGB(255,225,240), border = Color3.fromRGB(230,100,160), infoLogo = Color3.fromRGB(230,100,160) },
+	Cyan   = { bg = Color3.fromRGB(20,100,110),  stroke = Color3.fromRGB(60,200,210),  text = Color3.fromRGB(215,250,255), border = Color3.fromRGB(60,200,210),  infoLogo = Color3.fromRGB(60,200,210) },
+	Putih  = { bg = Color3.fromRGB(180,180,185), stroke = Color3.fromRGB(240,240,245), text = Color3.fromRGB(30,30,35),    border = Color3.fromRGB(240,240,245), infoLogo = Color3.fromRGB(240,240,245) },
+	Hitam  = { bg = Color3.fromRGB(15,15,18),    stroke = Color3.fromRGB(50,50,55),    text = Color3.fromRGB(240,240,240), border = Color3.fromRGB(50,50,55),    infoLogo = Color3.fromRGB(50,50,55) },
+	Emas   = { bg = Color3.fromRGB(140,100,20),  stroke = Color3.fromRGB(230,190,60),  text = Color3.fromRGB(255,245,210), border = Color3.fromRGB(230,190,60),  infoLogo = Color3.fromRGB(230,190,60) },
+	Abu    = { bg = Color3.fromRGB(60,60,70),    stroke = Color3.fromRGB(120,120,135), text = Color3.fromRGB(240,240,240), border = Color3.fromRGB(120,120,135), infoLogo = Color3.fromRGB(120,120,135) },
+	Lime   = { bg = Color3.fromRGB(80,140,25),   stroke = Color3.fromRGB(160,230,60),  text = Color3.fromRGB(240,255,215), border = Color3.fromRGB(160,230,60),  infoLogo = Color3.fromRGB(160,230,60) },
+	Marun  = { bg = Color3.fromRGB(80,20,30),    stroke = Color3.fromRGB(150,50,60),   text = Color3.fromRGB(255,220,220), border = Color3.fromRGB(150,50,60),   infoLogo = Color3.fromRGB(150,50,60) },
+	Navy   = { bg = Color3.fromRGB(15,25,70),    stroke = Color3.fromRGB(45,70,150),   text = Color3.fromRGB(215,225,255), border = Color3.fromRGB(45,70,150),   infoLogo = Color3.fromRGB(45,70,150) },
 	Rainbow = { bg = DefaultPillBg, stroke = DefaultPillStroke, text = DefaultPillText, border = DefaultBorder, infoLogo = InfoLogoBorder },
 }
 
@@ -300,11 +106,10 @@ local ActiveTheme = "None"
 local RainbowActive = false
 local RainbowHue = 0
 
-local function getTodayDate() return os.date("%d/%m/%Y") end
+local function getTodayDate()
+	return os.date("%d/%m/%Y")
+end
 
--- ============================================================
--- 5. MAIN UI
--- ============================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ZorXHub"
 ScreenGui.ResetOnSpawn = false
@@ -321,7 +126,152 @@ PopupLayer.ZIndex = 50
 PopupLayer.Parent = ScreenGui
 
 -- ============================================================
--- 6. BOTTOM NOTIF (untuk broadcast biasa)
+-- VARIABEL ANNOUNCEMENT
+-- ============================================================
+local announcementHistory = {}
+local unreadAnnouncements = 0
+local UnreadDot 
+
+-- ============================================================
+-- NOTIF ATAS KANAN (BUAT COPY & REFRESH INFO)
+-- ============================================================
+local function createTopRightNotification(titleText, messageText, iconId, duration)
+	duration = duration or 6
+	local container = playerGui:FindFirstChild("ZorxTopNotifContainer")
+	if not container then
+		container = Instance.new("ScreenGui")
+		container.Name = "ZorxTopNotifContainer"
+		container.ResetOnSpawn = false
+		container.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		container.IgnoreGuiInset = true
+		container.DisplayOrder = 999
+		container.Parent = playerGui
+	end
+	
+	local notif = Instance.new("Frame")
+	notif.Name = "TopNotif"
+	notif.Size = UDim2.new(0, 360, 0, 68) 
+	notif.Position = UDim2.new(1, -20, 0, -100) 
+	notif.AnchorPoint = Vector2.new(1, 0)
+	notif.BackgroundColor3 = Color3.fromRGB(15, 15, 18) 
+	notif.BorderSizePixel = 0
+	notif.ClipsDescendants = true
+	notif.ZIndex = 1000
+	notif.Parent = container
+
+	local nCorner = Instance.new("UICorner")
+	nCorner.CornerRadius = UDim.new(0, 8)
+	nCorner.Parent = notif
+
+	local nStroke = Instance.new("UIStroke")
+	nStroke.Color = Color3.fromRGB(45, 45, 55)
+	nStroke.Thickness = 1.5
+	nStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	nStroke.Parent = notif
+
+	local nIcon = Instance.new("ImageLabel")
+	nIcon.Size = UDim2.new(0, 36, 0, 36)
+	nIcon.Position = UDim2.new(0, 8, 0, 8)
+	nIcon.BackgroundTransparency = 1
+	nIcon.Image = "rbxassetid://" .. tostring(iconId or "134572030759999")
+	nIcon.ScaleType = Enum.ScaleType.Fit
+	nIcon.ZIndex = 1002
+	nIcon.Parent = notif
+
+	local nTitle = Instance.new("TextLabel")
+	nTitle.Size = UDim2.new(1, -75, 0, 14)
+	nTitle.Position = UDim2.new(0, 52, 0, 8)
+	nTitle.BackgroundTransparency = 1
+	nTitle.Text = titleText or "System Announcement"
+	nTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nTitle.Font = Enum.Font.GothamBold
+	nTitle.TextSize = 12
+	nTitle.TextXAlignment = Enum.TextXAlignment.Left
+	nTitle.ZIndex = 1001
+	nTitle.Parent = notif
+
+	local nDesc = Instance.new("TextLabel")
+	nDesc.Size = UDim2.new(1, -65, 0, 14)
+	nDesc.Position = UDim2.new(0, 52, 0, 26)
+	nDesc.BackgroundTransparency = 1
+	nDesc.Text = messageText or "Pesan..."
+	nDesc.TextColor3 = Color3.fromRGB(200, 200, 210)
+	nDesc.Font = Enum.Font.GothamMedium
+	nDesc.TextSize = 10
+	nDesc.TextXAlignment = Enum.TextXAlignment.Left
+	nDesc.TextYAlignment = Enum.TextYAlignment.Center
+	nDesc.TextWrapped = false
+	nDesc.TextTruncate = Enum.TextTruncate.AtEnd
+	nDesc.ZIndex = 1001
+	nDesc.Parent = notif
+
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Size = UDim2.new(0, 18, 0, 18)
+	closeBtn.Position = UDim2.new(1, -22, 0, 5)
+	closeBtn.BackgroundTransparency = 1
+	closeBtn.Text = ""
+	closeBtn.AutoButtonColor = false
+	closeBtn.ZIndex = 1002
+	closeBtn.Parent = notif
+
+	local closeIcon = Instance.new("ImageLabel")
+	closeIcon.Size = UDim2.new(0, 9, 0, 9)
+	closeIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+	closeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+	closeIcon.BackgroundTransparency = 1
+	closeIcon.Image = "rbxassetid://85435035697164"
+	closeIcon.ImageColor3 = Color3.fromRGB(170, 170, 180)
+	closeIcon.ScaleType = Enum.ScaleType.Fit
+	closeIcon.ZIndex = 1003
+	closeIcon.Parent = closeBtn
+
+	local barBg = Instance.new("Frame")
+	barBg.Size = UDim2.new(1, -16, 0, 3) 
+	barBg.Position = UDim2.new(0, 8, 1, -8)
+	barBg.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
+	barBg.BorderSizePixel = 0
+	barBg.ZIndex = 1001
+	barBg.Parent = notif
+
+	local barCorner = Instance.new("UICorner")
+	barCorner.CornerRadius = UDim.new(1, 0)
+	barCorner.Parent = barBg
+
+	local barFill = Instance.new("Frame")
+	barFill.Size = UDim2.new(1, 0, 1, 0)
+	barFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	barFill.BorderSizePixel = 0
+	barFill.ZIndex = 1002
+	barFill.Parent = barBg
+
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(1, 0)
+	fillCorner.Parent = barFill
+
+	TweenService:Create(notif, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		Position = UDim2.new(1, -20, 0, 20)
+	}):Play()
+
+	TweenService:Create(barFill, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 0, 1, 0)
+	}):Play()
+
+	local function dismiss()
+		local slideUp = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+			Position = UDim2.new(1, -20, 0, -100)
+		})
+		slideUp:Play()
+		slideUp.Completed:Connect(function()
+			notif:Destroy()
+		end)
+	end
+
+	closeBtn.MouseButton1Click:Connect(dismiss)
+	task.delay(duration, function() if notif and notif.Parent then dismiss() end end)
+end
+
+-- ============================================================
+-- SYSTEM NOTIFIKASI CUSTOM BROADCAST (TENGAH)
 -- ============================================================
 local function sendNotification(titleText, messageText, iconId, duration)
 	duration = duration or 6
@@ -366,6 +316,7 @@ local function sendNotification(titleText, messageText, iconId, duration)
 
 	local nIcon = Instance.new("ImageLabel")
 	nIcon.Size = UDim2.new(1, 0, 1, 0)
+	nIcon.Position = UDim2.new(0, 0, 0, 0)
 	nIcon.BackgroundTransparency = 1
 	nIcon.Image = "rbxassetid://" .. tostring(iconId or "134572030759999")
 	nIcon.ScaleType = Enum.ScaleType.Fit
@@ -506,21 +457,72 @@ local function sendNotification(titleText, messageText, iconId, duration)
 	fillCorner.CornerRadius = UDim.new(1, 0)
 	fillCorner.Parent = barFill
 
-	TweenService:Create(notif, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = UDim2.new(0, 330, 0, 68) }):Play()
-	TweenService:Create(barFill, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), { Size = UDim2.new(0, 0, 1, 0) }):Play()
+	TweenService:Create(notif, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 330, 0, 68)
+	}):Play()
+
+	TweenService:Create(barFill, TweenInfo.new(duration, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 0, 1, 0)
+	}):Play()
 
 	local function dismiss()
-		local t = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Size = UDim2.new(0, 0, 0, 0) })
-		t:Play()
-		t.Completed:Connect(function() notif:Destroy() end)
+		local scaleDown = TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+			Size = UDim2.new(0, 0, 0, 0)
+		})
+		scaleDown:Play()
+		scaleDown.Completed:Connect(function()
+			notif:Destroy()
+		end)
 	end
 
 	closeBtn.MouseButton1Click:Connect(dismiss)
-	task.delay(duration, function() if notif and notif.Parent then dismiss() end end)
+
+	task.delay(duration, function()
+		if notif and notif.Parent then
+			dismiss()
+		end
+	end)
 end
 
 -- ============================================================
--- 7. MAIN FRAME
+-- LIVE BROADCAST RECEIVER (TENGAH + BULATAN MERAH NYALA)
+-- ============================================================
+task.spawn(function()
+	local lastTimeChecked = 0
+	while task.wait(3) do
+		if reqFunc then
+			pcall(function()
+				local response = reqFunc({
+					Url = "https://zorx-broadcast-default-rtdb.firebaseio.com/broadcast.json",
+					Method = "GET"
+				})
+				if response and (response.StatusCode == 200 or response.Status == 200) then
+					local data = HttpService:JSONDecode(response.Body)
+					if data and data.Pesan and data.Waktu then
+						if data.Waktu > lastTimeChecked then
+							if lastTimeChecked ~= 0 then
+								local fotoAsset = data.IconId or "134572030759999"
+								sendNotification("ZorX Announcements", data.Pesan, fotoAsset, 7)
+								
+								if UnreadDot then
+									UnreadDot.Visible = true
+									unreadAnnouncements = unreadAnnouncements + 1
+								end
+								if _G.AddAnnouncement then
+									_G.AddAnnouncement(data.Pesan)
+								end
+							end
+							lastTimeChecked = data.Waktu
+						end
+					end
+				end
+			end)
+		end
+	end
+end)
+
+-- ============================================================
+-- MAIN UI SETUP
 -- ============================================================
 local Main = Instance.new("Frame")
 Main.Name = "Main"
@@ -531,6 +533,7 @@ Main.BackgroundColor3 = Colors.Background
 Main.BorderSizePixel = 0
 Main.Active = true
 Main.Draggable = true
+Main.ClipsDescendants = true
 Main.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -544,7 +547,9 @@ MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = Main
 
 local allBorders = {}
-local function registerBorder(stroke) table.insert(allBorders, stroke) end
+local function registerBorder(stroke)
+	table.insert(allBorders, stroke)
+end
 registerBorder(MainStroke)
 
 local MinimizeBtn = Instance.new("TextButton")
@@ -580,9 +585,6 @@ local function setUIOpen(open)
 	MinimizeBtn.Visible = not open
 end
 
--- ============================================================
--- 8. TOPBAR
--- ============================================================
 local TopBar = Instance.new("Frame")
 TopBar.Name = "TopBar"
 TopBar.Size = UDim2.new(1, 0, 0, 32)
@@ -618,7 +620,7 @@ local PillContainer = Instance.new("Frame")
 PillContainer.Name = "PillContainer"
 PillContainer.Size = UDim2.new(0, 0, 0, 22)
 PillContainer.AutomaticSize = Enum.AutomaticSize.X
-PillContainer.Position = UDim2.new(1, -72, 0.5, -11)
+PillContainer.Position = UDim2.new(1, -85, 0.5, -11)
 PillContainer.AnchorPoint = Vector2.new(1, 0)
 PillContainer.BackgroundTransparency = 1
 PillContainer.Parent = TopBar
@@ -635,7 +637,9 @@ local allPillStrokes = {}
 local allPillTexts = {}
 local infoLogoBorders = {}
 
-local function registerInfoLogoBorder(stroke) table.insert(infoLogoBorders, stroke) end
+local function registerInfoLogoBorder(stroke)
+	table.insert(infoLogoBorders, stroke)
+end
 
 local function createPill(textText, width, iconId)
 	local pill = Instance.new("Frame")
@@ -679,6 +683,7 @@ local function createPill(textText, width, iconId)
 	table.insert(allPills, pill)
 	table.insert(allPillStrokes, pStroke)
 	table.insert(allPillTexts, txt)
+
 	return pill, txt
 end
 
@@ -687,17 +692,49 @@ local fpsPill, fpsText = createPill("0", 48, "87621836182790")
 local execPill, execText = createPill(detectedExecutor, 68, "76551269066313")
 
 task.spawn(function()
-	while not Killed do
-		task.wait(5)
-		if Killed then break end
+	while task.wait(5) do
 		local newName = getGameName()
-		if gameText.Text ~= newName then gameText.Text = newName end
+		if gameText.Text ~= newName then
+			gameText.Text = newName
+		end
 	end
 end)
 
+-- ============================================================
+-- TOMBOL LONCENG & ANNOUNCEMENT (POSISI DIPERBAIKI)
+-- ============================================================
+local AnnouncBtn = Instance.new("TextButton")
+AnnouncBtn.Name = "AnnouncBtn"
+AnnouncBtn.Size = UDim2.new(0, 24, 0, 24)
+AnnouncBtn.Position = UDim2.new(1, -75, 0.5, -12)
+AnnouncBtn.BackgroundTransparency = 1
+AnnouncBtn.Text = ""
+AnnouncBtn.AutoButtonColor = false
+AnnouncBtn.Parent = TopBar
+
+local AnnouncIcon = Instance.new("ImageLabel")
+AnnouncIcon.Size = UDim2.new(0, 18, 0, 18)
+AnnouncIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+AnnouncIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+AnnouncIcon.BackgroundTransparency = 1
+AnnouncIcon.Image = "rbxassetid://86611648211571"
+AnnouncIcon.ScaleType = Enum.ScaleType.Fit
+AnnouncIcon.Parent = AnnouncBtn
+
+UnreadDot = Instance.new("Frame")
+UnreadDot.Name = "UnreadDot"
+UnreadDot.Size = UDim2.new(0, 8, 0, 8)
+UnreadDot.Position = UDim2.new(1, -6, 0, 0)
+UnreadDot.BackgroundColor3 = Colors.Red
+UnreadDot.BorderSizePixel = 0
+UnreadDot.Visible = false
+UnreadDot.ZIndex = 10
+UnreadDot.Parent = AnnouncBtn
+Instance.new("UICorner").Parent = UnreadDot
+
 local MaximizeBtn = Instance.new("TextButton")
 MaximizeBtn.Size = UDim2.new(0, 26, 0, 26)
-MaximizeBtn.Position = UDim2.new(1, -60, 0.5, -13)
+MaximizeBtn.Position = UDim2.new(1, -50, 0.5, -13) 
 MaximizeBtn.BackgroundTransparency = 1
 MaximizeBtn.Text = ""
 MaximizeBtn.AutoButtonColor = false
@@ -715,7 +752,7 @@ MaximizeIcon.Parent = MaximizeBtn
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 26, 0, 26)
-CloseBtn.Position = UDim2.new(1, -30, 0.5, -13)
+CloseBtn.Position = UDim2.new(1, -25, 0.5, -13) 
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = ""
 CloseBtn.AutoButtonColor = false
@@ -731,22 +768,26 @@ CloseIcon.ImageColor3 = Color3.fromRGB(200, 200, 200)
 CloseIcon.ScaleType = Enum.ScaleType.Fit
 CloseIcon.Parent = CloseBtn
 
-CloseBtn.MouseButton1Click:Connect(function() setUIOpen(false) end)
-MinimizeBtn.MouseButton1Click:Connect(function() setUIOpen(true) end)
+CloseBtn.MouseButton1Click:Connect(function()
+	setUIOpen(false)
+end)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+	setUIOpen(true)
+end)
 
 local isMaximized = false
 MaximizeBtn.MouseButton1Click:Connect(function()
 	isMaximized = not isMaximized
 	TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		Size = isMaximized and UDim2.new(0, 620, 0, 390) or UDim2.new(0, 480, 0, 300),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.5, 0)
 	}):Play()
 end)
 
 local frameCount = 0
 local lastTime = tick()
 RunService.RenderStepped:Connect(function()
-	if Killed then return end
 	frameCount = frameCount + 1
 	if tick() - lastTime >= 1 then
 		fpsText.Text = tostring(frameCount)
@@ -756,6 +797,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 local TopDivider = Instance.new("Frame")
+TopDivider.Name = "TopDivider"
 TopDivider.Size = UDim2.new(1, 0, 0, 1)
 TopDivider.Position = UDim2.new(0, 0, 0, 32)
 TopDivider.BackgroundColor3 = DefaultBorder
@@ -782,6 +824,7 @@ SidebarPad.PaddingBottom = UDim.new(0, 8)
 SidebarPad.Parent = Sidebar
 
 local SearchContainer = Instance.new("Frame")
+SearchContainer.Name = "SearchContainer"
 SearchContainer.Size = UDim2.new(1, 0, 0, 26)
 SearchContainer.BackgroundColor3 = Colors.Slot
 SearchContainer.BorderSizePixel = 0
@@ -808,6 +851,7 @@ SearchIcon.ScaleType = Enum.ScaleType.Fit
 SearchIcon.Parent = SearchContainer
 
 local SearchBox = Instance.new("TextBox")
+SearchBox.Name = "SearchBox"
 SearchBox.Size = UDim2.new(1, -24, 1, 0)
 SearchBox.Position = UDim2.new(0, 22, 0, 0)
 SearchBox.BackgroundTransparency = 1
@@ -822,6 +866,7 @@ SearchBox.ClearTextOnFocus = false
 SearchBox.Parent = SearchContainer
 
 local SidebarButtonContainer = Instance.new("Frame")
+SidebarButtonContainer.Name = "ButtonContainer"
 SidebarButtonContainer.Size = UDim2.new(1, 0, 1, -66)
 SidebarButtonContainer.Position = UDim2.new(0, 0, 0, 34)
 SidebarButtonContainer.BackgroundTransparency = 1
@@ -834,6 +879,7 @@ SidebarList.Padding = UDim.new(0, 2)
 SidebarList.Parent = SidebarButtonContainer
 
 local SidebarDivider = Instance.new("Frame")
+SidebarDivider.Name = "SidebarDivider"
 SidebarDivider.Size = UDim2.new(0, 1, 1, -33)
 SidebarDivider.Position = UDim2.new(0, 120, 0, 33)
 SidebarDivider.BackgroundColor3 = DefaultBorder
@@ -841,6 +887,7 @@ SidebarDivider.BorderSizePixel = 0
 SidebarDivider.Parent = Main
 
 local DiscordPill = Instance.new("TextButton")
+DiscordPill.Name = "DiscordPill"
 DiscordPill.Size = UDim2.new(1, 0, 0, 26)
 DiscordPill.Position = UDim2.new(0, 0, 1, -26)
 DiscordPill.BackgroundColor3 = DefaultPillBg
@@ -903,14 +950,19 @@ DiscordPill.MouseLeave:Connect(function()
 	local theme = ThemeColors[ActiveTheme]
 	TweenService:Create(DiscordPill, TweenInfo.new(0.15), { BackgroundColor3 = theme.bg }):Play()
 end)
+
 DiscordPill.MouseButton1Click:Connect(function()
 	pcall(function()
-		if setclipboard then setclipboard("https://discord.gg/3MrpqYycs")
-		elseif toclipboard then toclipboard("https://discord.gg/3MrpqYycs") end
+		if setclipboard then
+			setclipboard("https://discord.gg/3MrpqYycs")
+		elseif toclipboard then
+			toclipboard("https://discord.gg/3MrpqYycs")
+		end
 	end)
 end)
 
 local Content = Instance.new("Frame")
+Content.Name = "Content"
 Content.Size = UDim2.new(1, -121, 1, -33)
 Content.Position = UDim2.new(0, 121, 0, 33)
 Content.BackgroundColor3 = Colors.Panel
@@ -922,18 +974,36 @@ local ContentCorner = Instance.new("UICorner")
 ContentCorner.CornerRadius = UDim.new(0, 10)
 ContentCorner.Parent = Content
 
+-- INI BAGIAN WATERMARK YANG BISA DIGANTI
 local WatermarkLogo = Instance.new("ImageLabel")
+WatermarkLogo.Name = "WatermarkLogo"
 WatermarkLogo.Size = UDim2.new(0, 240, 0, 240)
 WatermarkLogo.Position = UDim2.new(0.5, 0, 0.5, 0)
 WatermarkLogo.AnchorPoint = Vector2.new(0.5, 0.5)
 WatermarkLogo.BackgroundTransparency = 1
-WatermarkLogo.Image = "rbxassetid://134572030759999"
+WatermarkLogo.Image = "rbxassetid://134572030759999" -- ID Default awal
 WatermarkLogo.ImageTransparency = 0.88
 WatermarkLogo.ScaleType = Enum.ScaleType.Fit
 WatermarkLogo.ZIndex = 1
 WatermarkLogo.Parent = Content
 
+-- TARIK ID WATERMARK DARI FIREBASE
+task.spawn(function()
+	if reqFunc then
+		pcall(function()
+			local res = reqFunc({ Url = "https://zorx-broadcast-default-rtdb.firebaseio.com/info/WatermarkId.json", Method = "GET" })
+			if res and (res.StatusCode == 200 or res.Status == 200) then
+				local wmId = HttpService:JSONDecode(res.Body)
+				if wmId and wmId ~= "" and wmId ~= "null" then
+					WatermarkLogo.Image = "rbxassetid://" .. tostring(wmId)
+				end
+			end
+		end)
+	end
+end)
+
 local Scroll = Instance.new("ScrollingFrame")
+Scroll.Name = "Scroll"
 Scroll.Size = UDim2.new(1, -12, 1, -10)
 Scroll.Position = UDim2.new(0, 6, 0, 5)
 Scroll.BackgroundTransparency = 1
@@ -956,9 +1026,6 @@ ScrollList.SortOrder = Enum.SortOrder.LayoutOrder
 ScrollList.Padding = UDim.new(0, 8)
 ScrollList.Parent = Scroll
 
--- ============================================================
--- 9. SIDEBAR BUTTON FACTORY
--- ============================================================
 local sidebarButtons = {}
 local activeTab = nil
 
@@ -1006,12 +1073,14 @@ local function createSidebarButton(text, order, iconId, onClick)
 			TweenService:Create(textLabel, TweenInfo.new(0.15), { TextColor3 = Colors.Text }):Play()
 		end
 	end)
+
 	btn.MouseLeave:Connect(function()
 		if activeTab ~= btn then
 			TweenService:Create(btn, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
 			TweenService:Create(textLabel, TweenInfo.new(0.15), { TextColor3 = Colors.SubText }):Play()
 		end
 	end)
+
 	btn.MouseButton1Click:Connect(function()
 		for _, b in pairs(sidebarButtons) do
 			TweenService:Create(b, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
@@ -1030,9 +1099,13 @@ end
 
 local function clearContent()
 	for _, child in pairs(Scroll:GetChildren()) do
-		if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end
+		if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+			child:Destroy()
+		end
 	end
-	for _, child in pairs(PopupLayer:GetChildren()) do child.Visible = false end
+	for _, child in pairs(PopupLayer:GetChildren()) do
+		child.Visible = false
+	end
 end
 
 SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1040,18 +1113,18 @@ SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
 	for _, btn in pairs(SidebarButtonContainer:GetChildren()) do
 		if btn:IsA("TextButton") then
 			local label = btn:FindFirstChild("Label")
-			if label then btn.Visible = (query == "" or label.Text:lower():find(query) ~= nil) end
+			if label then
+				btn.Visible = (query == "" or label.Text:lower():find(query) ~= nil)
+			end
 		end
 	end
 end)
 
--- ============================================================
--- 10. THEME SYSTEM
--- ============================================================
 local function applyPillTheme(themeName)
 	ActiveTheme = themeName
 	RainbowActive = (themeName == "Rainbow")
 	if RainbowActive then return end
+
 	local theme = ThemeColors[themeName]
 	if not theme then return end
 
@@ -1067,27 +1140,33 @@ local function applyPillTheme(themeName)
 	TweenService:Create(DiscordLink, TweenInfo.new(0.2), { TextColor3 = theme.text }):Play()
 
 	for _, border in pairs(allBorders) do
-		if border and border.Parent then TweenService:Create(border, TweenInfo.new(0.2), { Color = theme.border }):Play() end
+		if border and border.Parent then
+			TweenService:Create(border, TweenInfo.new(0.2), { Color = theme.border }):Play()
+		end
 	end
 	TopDivider.BackgroundColor3 = theme.border
 	SidebarDivider.BackgroundColor3 = theme.border
 
 	for _, border in pairs(infoLogoBorders) do
-		if border and border.Parent then TweenService:Create(border, TweenInfo.new(0.2), { Color = theme.infoLogo or theme.border }):Play() end
+		if border and border.Parent then
+			TweenService:Create(border, TweenInfo.new(0.2), { Color = theme.infoLogo or theme.border }):Play()
+		end
 	end
 end
 
 RunService.Heartbeat:Connect(function()
-	if Killed then return end
 	if not RainbowActive then return end
+
 	RainbowHue = (RainbowHue + 0.005) % 1
 	local rainbowColor = Color3.fromHSV(RainbowHue, 0.8, 1)
 	local rainbowDark = Color3.fromHSV(RainbowHue, 0.8, 0.4)
 	local rainbowText = Color3.fromHSV(RainbowHue, 0.3, 1)
+
 	for _, pill in pairs(allPills) do pill.BackgroundColor3 = rainbowDark end
 	for _, stroke in pairs(allPillStrokes) do stroke.Color = rainbowColor end
 	for _, txt in pairs(allPillTexts) do txt.TextColor3 = rainbowText end
 	DiscordLink.TextColor3 = rainbowText
+
 	for _, border in pairs(allBorders) do if border and border.Parent then border.Color = rainbowColor end end
 	for _, border in pairs(infoLogoBorders) do if border and border.Parent then border.Color = rainbowColor end end
 	TopDivider.BackgroundColor3 = rainbowColor
@@ -1095,13 +1174,15 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- ============================================================
--- 11. PANELS
+-- PANEL ABOUT (FOTO DIKECILIN)
 -- ============================================================
 local function loadAboutPanel()
 	clearContent()
 
 	local welcomeCard = Instance.new("Frame")
+	welcomeCard.Name = "WelcomeCard"
 	welcomeCard.Size = UDim2.new(1, 0, 0, 75)
+	welcomeCard.Position = UDim2.new(0, 0, 0, 0)
 	welcomeCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
 	welcomeCard.BorderSizePixel = 0
 	welcomeCard.LayoutOrder = 1
@@ -1143,7 +1224,9 @@ local function loadAboutPanel()
 	wDesc.Parent = welcomeCard
 
 	local imageCard = Instance.new("Frame")
+	imageCard.Name = "ImageCard"
 	imageCard.Size = UDim2.new(1, 0, 0, 140)
+	imageCard.Position = UDim2.new(0, 0, 0, 0)
 	imageCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
 	imageCard.BorderSizePixel = 0
 	imageCard.ClipsDescendants = true
@@ -1155,10 +1238,14 @@ local function loadAboutPanel()
 	iCorner.Parent = imageCard
 
 	local img = Instance.new("ImageLabel")
-	img.Size = UDim2.new(1, 0, 1, 0)
+	img.Size = UDim2.new(1, -4, 1, -4) -- FOTO DIKECILIN (FIX)
+	img.Position = UDim2.new(0.5, 0, 0.5, 0)
+	img.AnchorPoint = Vector2.new(0.5, 0.5)
 	img.BackgroundTransparency = 1
+	img.BorderSizePixel = 0
 	img.Image = "rbxassetid://91006115016356"
 	img.ScaleType = Enum.ScaleType.Stretch
+	img.ClipsDescendants = true
 	img.Parent = imageCard
 
 	local imgCorner = Instance.new("UICorner")
@@ -1173,11 +1260,16 @@ local function loadAboutPanel()
 	registerBorder(iStroke)
 end
 
+-- ============================================================
+-- TAB INFO (FOTO DIKECILIN)
+-- ============================================================
 local function loadInfoPanel()
 	clearContent()
 
 	local communityCard = Instance.new("Frame")
+	communityCard.Name = "CommunityCard"
 	communityCard.Size = UDim2.new(1, 0, 0, 145)
+	communityCard.Position = UDim2.new(0, 0, 0, 0)
 	communityCard.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
 	communityCard.BorderSizePixel = 0
 	communityCard.LayoutOrder = 1
@@ -1195,7 +1287,7 @@ local function loadInfoPanel()
 	registerBorder(cStroke)
 
 	local logoBox = Instance.new("Frame")
-	logoBox.Size = UDim2.new(0, 56, 0, 56)
+	logoBox.Size = UDim2.new(0, 54, 0, 54) -- KOTAK DIKECILIN (FIX)
 	logoBox.Position = UDim2.new(0, 14, 0, 14)
 	logoBox.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
 	logoBox.BorderSizePixel = 0
@@ -1214,10 +1306,14 @@ local function loadInfoPanel()
 	registerInfoLogoBorder(logoStroke)
 
 	local logoImg2 = Instance.new("ImageLabel")
-	logoImg2.Size = UDim2.new(1, 0, 1, 0)
+	logoImg2.Size = UDim2.new(1, -4, 1, -4) -- FOTO DIKECILIN (FIX)
+	logoImg2.Position = UDim2.new(0.5, 0, 0.5, 0)
+	logoImg2.AnchorPoint = Vector2.new(0.5, 0.5)
 	logoImg2.BackgroundTransparency = 1
+	logoImg2.BorderSizePixel = 0
 	logoImg2.Image = "rbxassetid://77776661633653"
-	logoImg2.ScaleType = Enum.ScaleType.Stretch
+	logoImg2.ScaleType = Enum.ScaleType.Fit 
+	logoImg2.ClipsDescendants = true
 	logoImg2.Parent = logoBox
 
 	local logoImgCorner = Instance.new("UICorner")
@@ -1249,12 +1345,11 @@ local function loadInfoPanel()
 
 	local function fetchLiveInfo()
 		task.spawn(function()
-			if Killed then return end
 			if reqFunc then
 				pcall(function()
 					local response = reqFunc({
 						Url = "https://zorx-broadcast-default-rtdb.firebaseio.com/info.json",
-						Method = "GET",
+						Method = "GET"
 					})
 					if response and (response.StatusCode == 200 or response.Status == 200) then
 						local data = HttpService:JSONDecode(response.Body)
@@ -1268,6 +1363,7 @@ local function loadInfoPanel()
 			end
 		end)
 	end
+
 	fetchLiveInfo()
 
 	local copyDiscordBtn = Instance.new("TextButton")
@@ -1353,20 +1449,25 @@ local function loadInfoPanel()
 			if setclipboard then setclipboard("https://discord.gg/3MrpqYycs")
 			elseif toclipboard then toclipboard("https://discord.gg/3MrpqYycs") end
 		end)
+		createTopRightNotification("Discord Invite", "Successfully copied to your clipboard!", "82414580295798", 4)
 	end)
+
 	updateBtn.MouseButton1Click:Connect(function()
 		local rotateInfo = TweenInfo.new(0.8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
-		TweenService:Create(udIcon, rotateInfo, { Rotation = 360 }):Play()
+		TweenService:Create(udIcon, rotateInfo, {Rotation = 360}):Play()
 		fetchLiveInfo()
 		task.wait(0.8)
 		udIcon.Rotation = 0
+		createTopRightNotification("Info Updated", "Latest version and date successfully fetched!", "82414580295798", 4)
 	end)
 end
 
+-- PANEL SETTINGS (TETAP)
 local function loadSetingsPanel()
 	clearContent()
 
 	local header = Instance.new("TextLabel")
+	header.Name = "Header_Colours"
 	header.Size = UDim2.new(1, 0, 0, 16)
 	header.BackgroundTransparency = 1
 	header.Text = "COLOURS"
@@ -1378,6 +1479,7 @@ local function loadSetingsPanel()
 	header.Parent = Scroll
 
 	local dropdownRow = Instance.new("Frame")
+	dropdownRow.Name = "Dropdown_Colours"
 	dropdownRow.Size = UDim2.new(1, 0, 0, 42)
 	dropdownRow.BackgroundColor3 = Colors.Slot
 	dropdownRow.BorderSizePixel = 0
@@ -1434,6 +1536,7 @@ local function loadSetingsPanel()
 	dbCorner.Parent = dropBox
 
 	local popup = Instance.new("Frame")
+	popup.Name = "Popup_Colours"
 	popup.Size = UDim2.new(0, 110, 0, 0)
 	popup.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 	popup.BorderSizePixel = 0
@@ -1479,21 +1582,26 @@ local function loadSetingsPanel()
 	local themeList = {
 		"None", "Rainbow", "Biru", "Ungu", "Hijau", "Kuning", "Oren",
 		"Merah", "Pink", "Cyan", "Putih", "Hitam", "Emas",
-		"Abu", "Lime", "Marun", "Navy",
+		"Abu", "Lime", "Marun", "Navy"
 	}
 
 	local function refreshPopup()
 		for _, child in pairs(popupScroll:GetChildren()) do
 			if child:IsA("TextButton") then child:Destroy() end
 		end
+
 		local count = 0
 		for _, themeName in ipairs(themeList) do
 			count += 1
 			local themeData = ThemeColors[themeName]
 			local dotColor
-			if themeName == "Rainbow" then dotColor = Color3.fromHSV(tick() % 1, 0.8, 1)
-			elseif themeName == "None" then dotColor = NoneDotColor
-			else dotColor = themeData and themeData.stroke or DefaultPillStroke end
+			if themeName == "Rainbow" then
+				dotColor = Color3.fromHSV(tick() % 1, 0.8, 1)
+			elseif themeName == "None" then
+				dotColor = NoneDotColor
+			else
+				dotColor = themeData and themeData.stroke or DefaultPillStroke
+			end
 
 			local item = Instance.new("TextButton")
 			item.Size = UDim2.new(1, -6, 0, 24)
@@ -1523,6 +1631,7 @@ local function loadSetingsPanel()
 			local dotStroke = Instance.new("UIStroke")
 			dotStroke.Color = Color3.fromRGB(80, 80, 90)
 			dotStroke.Thickness = 1
+			dotStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 			dotStroke.Parent = dot
 
 			local itemText = Instance.new("TextLabel")
@@ -1540,13 +1649,18 @@ local function loadSetingsPanel()
 				item.BackgroundTransparency = 0.5
 				item.BackgroundColor3 = Colors.SlotHover
 			end
+
 			item.MouseEnter:Connect(function()
 				item.BackgroundTransparency = 0.5
 				item.BackgroundColor3 = Colors.SlotHover
 			end)
+
 			item.MouseLeave:Connect(function()
-				if ActiveTheme ~= themeName then item.BackgroundTransparency = 1 end
+				if ActiveTheme ~= themeName then
+					item.BackgroundTransparency = 1
+				end
 			end)
+
 			item.MouseButton1Click:Connect(function()
 				applyPillTheme(themeName)
 				dropBox.Text = themeName
@@ -1555,6 +1669,7 @@ local function loadSetingsPanel()
 				popup.Size = UDim2.new(0, 110, 0, 0)
 			end)
 		end
+
 		return count
 	end
 
@@ -1584,73 +1699,253 @@ createSidebarButton("Setings", 4, "117852848591099", loadSetingsPanel)
 createSidebarButton("Info", 5, "117372440865704", loadInfoPanel)
 
 task.wait(0.1)
+
 activeTab = sidebarButtons[1]
 if sidebarButtons[1] then
 	local lbl = sidebarButtons[1]:FindFirstChild("Label")
-	if lbl then lbl.TextColor3 = Colors.Text end
+	if lbl then
+		lbl.TextColor3 = Colors.Text
+	end
 	TweenService:Create(sidebarButtons[1], TweenInfo.new(0.15), {
 		BackgroundTransparency = 0.5,
-		BackgroundColor3 = Colors.SlotHover,
+		BackgroundColor3 = Colors.SlotHover
 	}):Play()
 end
+
 loadAboutPanel()
+ 
+-- ============================================================
+-- UI ANNOUNCEMENT (AUTO-EXPAND KE BAWAH + EMPTY STATE)
+-- ============================================================
+local AnnouncPanel = Instance.new("Frame")
+AnnouncPanel.Name = "AnnouncPanel"
+AnnouncPanel.Size = UDim2.new(0, 260, 0, 42)
+AnnouncPanel.Position = UDim2.new(1, -270, 0, 38)
+AnnouncPanel.BackgroundColor3 = Colors.Panel
+AnnouncPanel.BorderSizePixel = 0
+AnnouncPanel.Visible = false
+AnnouncPanel.ZIndex = 50
+AnnouncPanel.ClipsDescendants = false
+AnnouncPanel.Parent = Main
 
--- ============================================================
--- 12. LIVE BROADCAST RECEIVER (dengan Kill guard)
--- ============================================================
-task.spawn(function()
-	local lastTimeChecked = 0
-	while not Killed do
-		task.wait(3)
-		if Killed then break end
-		if reqFunc then
-			pcall(function()
-				local response = reqFunc({
-					Url = "https://zorx-broadcast-default-rtdb.firebaseio.com/broadcast.json",
-					Method = "GET",
-				})
-				if response and (response.StatusCode == 200 or response.Status == 200) then
-					local data = HttpService:JSONDecode(response.Body)
-					if data and data.Pesan and data.Waktu then
-						if data.Waktu > lastTimeChecked then
-							if lastTimeChecked ~= 0 then
-								local fotoAsset = data.IconId or "134572030759999"
-								sendNotification("ZorX Announcements", data.Pesan, fotoAsset, 7)
-							end
-							lastTimeChecked = data.Waktu
-						end
-					end
-				end
-			end)
+local apCorner = Instance.new("UICorner")
+apCorner.CornerRadius = UDim.new(0, 8)
+apCorner.Parent = AnnouncPanel
+
+local apStroke = Instance.new("UIStroke")
+apStroke.Color = DefaultBorder
+apStroke.Thickness = 1
+apStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+apStroke.Parent = AnnouncPanel
+registerBorder(apStroke)
+
+-- Header (judul + tombol close) — fixed di atas
+local apHeader = Instance.new("Frame")
+apHeader.Name = "Header"
+apHeader.Size = UDim2.new(1, 0, 0, 32)
+apHeader.Position = UDim2.new(0, 0, 0, 0)
+apHeader.BackgroundTransparency = 1
+apHeader.ZIndex = 51
+apHeader.Parent = AnnouncPanel
+
+local apTitle = Instance.new("TextLabel")
+apTitle.Size = UDim2.new(1, -30, 1, 0)
+apTitle.Position = UDim2.new(0, 12, 0, 0)
+apTitle.BackgroundTransparency = 1
+apTitle.Text = "Announcements"
+apTitle.TextColor3 = Colors.Text
+apTitle.Font = Enum.Font.GothamBold
+apTitle.TextSize = 12
+apTitle.TextXAlignment = Enum.TextXAlignment.Left
+apTitle.ZIndex = 52
+apTitle.Parent = apHeader
+
+local apCloseBtn = Instance.new("TextButton")
+apCloseBtn.Size = UDim2.new(0, 20, 0, 20)
+apCloseBtn.Position = UDim2.new(1, -25, 0.5, -10)
+apCloseBtn.BackgroundTransparency = 1
+apCloseBtn.Text = ""
+apCloseBtn.AutoButtonColor = false
+apCloseBtn.ZIndex = 52
+apCloseBtn.Parent = apHeader
+
+local apCloseIcon = Instance.new("ImageLabel")
+apCloseIcon.Size = UDim2.new(0, 10, 0, 10)
+apCloseIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+apCloseIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+apCloseIcon.BackgroundTransparency = 1
+apCloseIcon.Image = "rbxassetid://85435035697164"
+apCloseIcon.ImageColor3 = Color3.fromRGB(170, 170, 180)
+apCloseIcon.ScaleType = Enum.ScaleType.Fit
+apCloseIcon.ZIndex = 53
+apCloseIcon.Parent = apCloseBtn
+
+-- Container untuk pesan (auto memanjang ke bawah)
+local apList = Instance.new("Frame")
+apList.Name = "MsgContainer"
+apList.Size = UDim2.new(1, -16, 0, 0)
+apList.Position = UDim2.new(0, 8, 0, 34)
+apList.BackgroundTransparency = 1
+apList.AutomaticSize = Enum.AutomaticSize.Y
+apList.ZIndex = 51
+apList.Parent = AnnouncPanel
+
+local apListLayout = Instance.new("UIListLayout")
+apListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+apListLayout.Padding = UDim.new(0, 4)
+apListLayout.Parent = apList
+
+-- Empty state: "No notifications yet"
+local apEmptyLabel = Instance.new("TextLabel")
+apEmptyLabel.Name = "EmptyLabel"
+apEmptyLabel.Size = UDim2.new(1, 0, 0, 20)
+apEmptyLabel.BackgroundTransparency = 1
+apEmptyLabel.Text = "No notifications yet"
+apEmptyLabel.TextColor3 = Colors.SubText
+apEmptyLabel.Font = Enum.Font.Gotham
+apEmptyLabel.TextSize = 10
+apEmptyLabel.TextXAlignment = Enum.TextXAlignment.Center
+apEmptyLabel.TextYAlignment = Enum.TextYAlignment.Center
+apEmptyLabel.LayoutOrder = 0
+apEmptyLabel.Visible = true
+apEmptyLabel.ZIndex = 52
+apEmptyLabel.Parent = apList
+
+local function countAnnouncements()
+	local n = 0
+	for _, c in pairs(apList:GetChildren()) do
+		if c:IsA("Frame") and c.Name == "AnnMsg" then
+			n += 1
 		end
+	end
+	return n
+end
+
+local function refreshAnnouncPanelSize()
+	local n = countAnnouncements()
+	apEmptyLabel.Visible = (n == 0)
+
+	task.defer(function()
+		local targetH
+		if n == 0 then
+			targetH = 42 + 20
+		else
+			targetH = 34 + apList.AbsoluteSize.Y + 8
+		end
+		TweenService:Create(AnnouncPanel, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 260, 0, targetH)
+		}):Play()
+	end)
+end
+
+_G.AddAnnouncement = function(text)
+	if not text or text == "" then return end
+
+	-- Anti spam: skip duplikat di 3 pesan terakhir
+	local recent = {}
+	for _, c in pairs(apList:GetChildren()) do
+		if c:IsA("Frame") and c.Name == "AnnMsg" then
+			table.insert(recent, c)
+		end
+	end
+	table.sort(recent, function(a, b) return a.LayoutOrder > b.LayoutOrder end)
+	local recentCount = 0
+	for _, c in pairs(recent) do
+		recentCount += 1
+		if recentCount > 3 then break end
+		local lbl = c:FindFirstChild("MsgText")
+		if lbl and lbl.Text == text then
+			return
+		end
+	end
+
+	-- Batasi maksimal 6 pesan
+	if #recent >= 6 then
+		local oldest = nil
+		for _, c in pairs(recent) do
+			if not oldest or c.LayoutOrder < oldest.LayoutOrder then
+				oldest = c
+			end
+		end
+		if oldest then oldest:Destroy() end
+	end
+
+	local newOrder = 1
+	for _, c in pairs(apList:GetChildren()) do
+		if c:IsA("Frame") and c.Name == "AnnMsg" and c.LayoutOrder >= newOrder then
+			newOrder = c.LayoutOrder + 1
+		end
+	end
+
+	local msgFrame = Instance.new("Frame")
+	msgFrame.Name = "AnnMsg"
+	msgFrame.Size = UDim2.new(1, 0, 0, 40)
+	msgFrame.BackgroundColor3 = Colors.Slot
+	msgFrame.BorderSizePixel = 0
+	msgFrame.LayoutOrder = newOrder
+	msgFrame.AutomaticSize = Enum.AutomaticSize.Y
+	msgFrame.ZIndex = 52
+	msgFrame.Parent = apList
+
+	local msgCorner = Instance.new("UICorner")
+	msgCorner.CornerRadius = UDim.new(0, 6)
+	msgCorner.Parent = msgFrame
+
+	local msgPad = Instance.new("UIPadding")
+	msgPad.PaddingTop = UDim.new(0, 6)
+	msgPad.PaddingBottom = UDim.new(0, 6)
+	msgPad.PaddingLeft = UDim.new(0, 8)
+	msgPad.PaddingRight = UDim.new(0, 8)
+	msgPad.Parent = msgFrame
+
+	local msgLabel = Instance.new("TextLabel")
+	msgLabel.Name = "MsgText"
+	msgLabel.Size = UDim2.new(1, 0, 0, 0)
+	msgLabel.BackgroundTransparency = 1
+	msgLabel.Text = text
+	msgLabel.TextColor3 = Colors.Text
+	msgLabel.Font = Enum.Font.Gotham
+	msgLabel.TextSize = 10
+	msgLabel.TextWrapped = true
+	msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+	msgLabel.TextYAlignment = Enum.TextYAlignment.Top
+	msgLabel.AutomaticSize = Enum.AutomaticSize.Y
+	msgLabel.ZIndex = 53
+	msgLabel.Parent = msgFrame
+
+	msgFrame.BackgroundTransparency = 1
+	TweenService:Create(msgFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0
+	}):Play()
+
+	refreshAnnouncPanelSize()
+
+	if not AnnouncPanel.Visible and UnreadDot then
+		UnreadDot.Visible = true
+		unreadAnnouncements += 1
+	end
+end
+
+apListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	refreshAnnouncPanelSize()
+end)
+
+AnnouncBtn.MouseButton1Click:Connect(function()
+	AnnouncPanel.Visible = not AnnouncPanel.Visible
+	if AnnouncPanel.Visible then
+		if UnreadDot then UnreadDot.Visible = false end
+		unreadAnnouncements = 0
+		refreshAnnouncPanelSize()
+	else
+		AnnouncPanel.Size = UDim2.new(0, 260, 0, 42)
 	end
 end)
 
--- ============================================================
--- 13. RUNTIME MAINTENANCE MONITOR (kill switch real-time)
--- ============================================================
-task.spawn(function()
-	while not Killed do
-		task.wait(4)
-		if Killed then break end
-		if reqFunc then
-			pcall(function()
-				local response = reqFunc({
-					Url = "https://zorx-broadcast-default-rtdb.firebaseio.com/info/Maintenance.json",
-					Method = "GET",
-				})
-				if response and (response.StatusCode == 200 or response.Status == 200) then
-					local decodedOk, isMaint = pcall(function()
-						return HttpService:JSONDecode(response.Body)
-					end)
-					if decodedOk and isMaint == true then
-						runMaintenanceSequence()
-						break
-					end
-				end
-			end)
-		end
-	end
+apCloseBtn.MouseButton1Click:Connect(function()
+	AnnouncPanel.Visible = false
+	if UnreadDot then UnreadDot.Visible = false end
+	unreadAnnouncements = 0
+	AnnouncPanel.Size = UDim2.new(0, 260, 0, 42)
 end)
 
-print("ZORX Hub - Full Service Loaded Successfully!")
+print("ZORX Hub - Full UI (Murni UI) Loaded Successfully!")
